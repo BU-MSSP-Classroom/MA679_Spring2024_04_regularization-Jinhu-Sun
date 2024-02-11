@@ -91,8 +91,26 @@ Here are few rules:
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+library(glmnet)
+x <- data.matrix(ames_raw_2008[, c(14,19,48)])
+y <- log(ames_raw_2008$SalePrice)
+
+# Perform cross-validation to determine the optimal lambda for regularization
+cross_validated <- cv.glmnet(x, y, alpha = 1)
+lambda <- cross_validated$lambda.min
+print("Lambda:")
+print(lambda)
+
+plot(cross_validated)
+
+ridge <- glmnet(x, y, alpha = 1, lambda = lambda)
+
+newx <- data.matrix(ames_raw_2009[, c(14,19,48)])
+lasso_predicted <- predict(ridge, newx = newx)
+
+lasso_loss <- calc_loss(exp(lasso_predicted), ames_raw_2009$SalePrice)
+print("Lasso Loss")
+print(lasso_loss)
 ```
 
 Your answer:
@@ -162,8 +180,21 @@ In this exercise, we will generate simulated data, and will then use this data t
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+# Set the seed for reproducibility
+set.seed(123)
+
+# Length of the vectors
+n <- 100
+
+# Generate a predictor vector X
+X <- rnorm(n)
+
+# Generate a noise vector epsilon
+e <- rnorm(n)
+
+# Display the vectors
+X
+e
 ```
 
 
@@ -171,8 +202,22 @@ Your code:
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+# Assuming that X and epsilon have already been generated as per the previous part
+# Set the seed for reproducibility
+set.seed(123)
+
+# Define the constants
+beta0 <- 1  
+beta1 <- 2  
+beta2 <- 3  
+beta3 <- 4
+
+# Generate the response vector Y
+Y <- beta0 + beta1*X + beta2*X^2 + beta3*X^3 + e
+
+# Display the response vector
+Y
+
 ```
 
 
@@ -180,8 +225,40 @@ Your code:
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+# Load necessary library
+library(leaps)
+
+data <- data.frame(Y = Y, X = X, X2 = X^2, X3 = X^3, X4 = X^4, X5 = X^5, 
+                   X6 = X^6, X7 = X^7, X8 = X^8, X9 = X^9, X10 = X^10)
+
+# Perform best subset selection
+subset_selection <- regsubsets(Y ~ ., data=data, nbest=1, nvmax=10, method="exhaustive")
+
+# Get summary of best subset selection
+subset_summary <- summary(subset_selection)
+
+# Identify the best model according to Cp, BIC, and adjusted R^2
+# Note: This step is for illustration. In practice, you might want to look at each criterion separately.
+best_by_cp <- which.min(subset_summary$cp)
+best_by_bic <- which.min(subset_summary$bic)
+best_by_adjr2 <- which.max(subset_summary$adjr2)
+
+# Extract the coefficients of the best model by one of the criteria, for example, BIC
+best_model <- coef(subset_selection, id=best_by_bic)
+
+# Plotting
+plot(subset_summary$cp, xlab="Number of Variables", ylab="Cp", type='l')
+points(best_by_cp, subset_summary$cp[best_by_cp], col="red", cex=2, pch=20)
+
+plot(subset_summary$bic, xlab="Number of Variables", ylab="BIC", type='l')
+points(best_by_bic, subset_summary$bic[best_by_bic], col="red", cex=2, pch=20)
+
+plot(subset_summary$adjr2, xlab="Number of Variables", ylab="Adjusted R^2", type='l')
+points(best_by_adjr2, subset_summary$adjr2[best_by_adjr2], col="red", cex=2, pch=20)
+
+# Output the coefficients of the best model
+best_model
+
 ```
 
 Your answer:
@@ -196,8 +273,16 @@ Please write your answer in full sentences.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+# Perform forward stepwise selection
+forward_selection <- regsubsets(Y ~ ., data=data, nbest=1, nvmax=10, method="forward")
+forward_summary <- summary(forward_selection)
+
+# Perform backward stepwise selection
+backward_selection <- regsubsets(Y ~ ., data=data, nbest=1, nvmax=10, method="backward")
+backward_summary <- summary(backward_selection)
+
+forward_summary
+backward_summary
 ```
 
 Your answer:
@@ -212,8 +297,28 @@ Please write your answer in full sentences.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+# Prepare the matrix of predictors and the response vector
+predictors <- as.matrix(data[, -1])  # exclude the response variable Y
+response <- data$Y
+
+# Fit lasso model using cross-validation
+cv_lasso <- cv.glmnet(predictors, response, alpha=1)
+
+# Plot the cross-validation error
+plot(cv_lasso)
+
+# Find the lambda that gives minimum mean cross-validated error
+optimal_lambda <- cv_lasso$lambda.min
+
+# Fit lasso model on the full data with the selected lambda
+lasso_model <- glmnet(predictors, response, alpha=1, lambda=optimal_lambda)
+
+# Get the coefficient estimates
+lasso_coefficients <- coef(lasso_model)
+
+# Output the optimal lambda and coefficients
+list(optimal_lambda = optimal_lambda, lasso_coefficients = lasso_coefficients)
+
 ```
 
 Your answer:
@@ -228,8 +333,27 @@ Please write your answer in full sentences.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+# Generate the response vector Y
+beta0 <- 1 # replace with your chosen value
+beta7 <- 2 # replace with your chosen value
+Y <- beta0 + beta7 * X^7 + e
+
+# Create the data frame for predictors X, X^2, ..., X^10
+data <- data.frame(Y = Y, X = X, X2 = X^2, X3 = X^3, X4 = X^4, X5 = X^5,
+                   X6 = X^6, X7 = X^7, X8 = X^8, X9 = X^9, X10 = X^10)
+
+# Best subset selection
+subset_selection <- regsubsets(Y ~ ., data=data, nbest=1, nvmax=10, method="exhaustive")
+subset_summary <- summary(subset_selection)
+
+# Perform lasso regression
+predictors <- as.matrix(data[, -1]) # exclude the response variable Y
+cv_lasso <- cv.glmnet(predictors, response, alpha=1)
+optimal_lambda <- cv_lasso$lambda.min
+lasso_model <- glmnet(predictors, response, alpha=1, lambda=optimal_lambda)
+lasso_coefficients <- coef(lasso_model)
+
+lasso_coefficients
 ```
 
 Your answer:
@@ -245,6 +369,7 @@ Please write your answer in full sentences.
 
 In this exercise, we will predict the number of applications received using the other variables in the College data set.
 ```{r}
+library(ISLR2)
 data(College,package = "ISLR2")
 ```
 
@@ -252,16 +377,37 @@ data(College,package = "ISLR2")
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+data("College")
+
+set.seed(123)
+n <- nrow(College)
+
+train_size <- floor(0.7 * n)
+train_indices <- sample(seq_len(n), size = train_size)
+training_set <- College[train_indices, ]
+test_set <- College[-train_indices, ]
 ```
 
 (b) Fit a linear model using least squares on the training set, and report the test error obtained.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+# Assuming the 'training_set' and 'test_set' have been created as shown earlier
+
+# Fit a linear model using all other variables to predict 'Apps'
+# 'Apps' is assumed to be the response variable you want to predict
+# Replace 'Apps' with the actual name of the response variable if it's different
+linear_model <- lm(Apps ~ ., data = training_set)
+
+# Predict on the test set
+predictions <- predict(linear_model, newdata = test_set)
+
+# Calculate the test error (MSE)
+test_error <- mean((test_set$Apps - predictions)^2)
+
+# Report the test error
+test_error
+
 ```
 
 Your answer:
@@ -277,8 +423,20 @@ Please write your answer in full sentences.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+training_predictors <- model.matrix(Apps ~ . - 1, data = training_set)
+test_predictors <- model.matrix(Apps ~ . - 1, data = test_set)
+training_response <- training_set$Apps
+
+# Fit ridge regression model using cross-validation to find optimal lambda
+cv_ridge <- cv.glmnet(training_predictors, training_response, alpha = 0, lambda = 10^seq(10, -2, length = 100))
+optimal_lambda <- cv_ridge$lambda.min
+ridge_model <- glmnet(training_predictors, training_response, alpha = 0, lambda = optimal_lambda)
+
+# Predict on the test set
+ridge_predictions <- predict(ridge_model, s = optimal_lambda, newx = test_predictors)
+
+ridge_test_error <- mean((test_set$Apps - ridge_predictions)^2)
+ridge_test_error
 ```
 
 Your answer:
@@ -293,8 +451,21 @@ Please write your answer in full sentences.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+training_predictors <- model.matrix(Apps ~ . - 1, data = training_set)
+test_predictors <- model.matrix(Apps ~ . - 1, data = test_set)
+training_response <- training_set$Apps
+
+# Fit lasso model using cross-validation to find optimal lambda
+cv_lasso <- cv.glmnet(training_predictors, training_response, alpha = 1)
+optimal_lambda <- cv_lasso$lambda.min
+lasso_model <- glmnet(training_predictors, training_response, alpha = 1, lambda = optimal_lambda)
+
+lasso_predictions <- predict(lasso_model, s = optimal_lambda, newx = test_predictors)
+
+lasso_test_error <- mean((test_set$Apps - lasso_predictions)^2)
+
+non_zero_coefficients <- sum(coef(lasso_model, s = optimal_lambda) != 0)
+list(test_error = lasso_test_error, non_zero_coefficients = non_zero_coefficients)
 ```
 
 Your answer:
@@ -310,8 +481,32 @@ Please write your answer in full sentences.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+library(pls)
+
+response <- training_set$Apps
+predictors <- training_set[, -which(names(training_set) == "Apps")]
+
+# Fit the PCR model using cross-validation to select the number of components
+pcr_model <- pcr(Apps ~ ., data = training_set, scale = TRUE, validation = "CV")
+
+# Access the cross-validation results directly from the pcr_model object
+validation_results <- pcr_model$validation
+
+# If you want to extract the MSE for each number of components and find the minimum
+optimal_components <- which.min(validation_results$PRESS)
+
+# Now use the optimal number of components to predict and calculate the test error
+final_pcr_model <- pcr(Apps ~ ., data = training_set, scale = TRUE, ncomp = optimal_components)
+
+# Predict on the test set
+test_predictors <- test_set[, -which(names(test_set) == "Apps")]
+pcr_predictions <- predict(final_pcr_model, newdata = test_predictors, ncomp = optimal_components)
+
+# Calculate the test error (MSE)
+pcr_test_error <- mean((test_set$Apps - pcr_predictions)^2)
+
+# Report the test error and the optimal number of components
+list(test_error = pcr_test_error, optimal_components = optimal_components)
 ```
 
 Your answer:
@@ -327,8 +522,29 @@ Please write your answer in full sentences.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+response <- training_set$Apps
+predictors <- training_set[, -which(names(training_set) == "Apps")]
+
+# Fit the PLS model using cross-validation to select the number of components
+pls_model <- plsr(Apps ~ ., data = training_set, scale = TRUE, validation = "CV")
+
+validation_results <- pls_model$validation
+
+# If you want to extract the MSE for each number of components and find the minimum
+optimal_components <- which.min(validation_results$PRESS)
+
+# Now use the optimal number of components to predict and calculate the test error
+final_pls_model <- plsr(Apps ~ ., data = training_set, scale = TRUE, ncomp = optimal_components)
+
+# Predict on the test set
+test_predictors <- test_set[, -which(names(test_set) == "Apps")]
+pcr_predictions <- predict(final_pls_model, newdata = test_predictors, ncomp = optimal_components)
+
+# Calculate the test error (MSE)
+pcr_test_error <- mean((test_set$Apps - pcr_predictions)^2)
+
+# Report the test error and the optimal number of components
+list(test_error = pcr_test_error, optimal_components = optimal_components)
 ```
 
 Your answer:
@@ -364,8 +580,28 @@ We have seen that as the number of features used in a model increases, the train
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+set.seed(0) 
+
+p <- 20 
+n <- 1000
+num_zeros <- 5
+
+X <- matrix(rnorm(n * p), n, p)
+
+beta_true <- rnorm(p)
+beta_true[1:num_zeros] <- 0
+
+epsilon <- rnorm(n)
+
+y <- X %*% beta_true + epsilon
+
+df_X <- as.data.frame(X)
+names(df_X) <- paste("feature", 1:p, sep = "_")
+df_y <- data.frame(response = y)
+
+head(df_X)
+head(df_y)
+beta_true
 ```
 
 Your answer:
@@ -381,8 +617,20 @@ Please write your answer in full sentences.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+training_size <- 100
+
+set.seed(0)
+training_indices <- sample(1:nrow(df_X), training_size)
+
+training_X <- df_X[training_indices, ]
+training_y <- df_y[training_indices, ]
+
+test_X <- df_X[-training_indices, ]
+test_y <- df_y[-training_indices, ]
+
+cat("Training set dimensions (X):", dim(training_X), "\n")
+cat("Test set dimensions (X):", dim(test_X), "\n")
+
 ```
 
 Your answer:
@@ -397,8 +645,7 @@ Please write your answer in full sentences.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+
 ```
 
 Your answer:
@@ -487,8 +734,45 @@ data(Boston,package = "MASS")
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+library(MASS)
+data("Boston")
+
+best_subset_selection <- function(data) {
+  full <- regsubsets(crim ~ ., data = Boston, nvmax = NULL)
+  summary(full)
+}
+
+# Ridge regression
+ridge_regression <- function(data) {
+  x <- model.matrix(crim ~ . - 1, data)
+  y <- data$crim
+  cv_out <- cv.glmnet(x, y, alpha = 0)
+  best_lambda <- cv_out$lambda.min
+  ridge_mod <- glmnet(x, y, alpha = 0, lambda = best_lambda)
+  return(list(cv = cv_out, model = ridge_mod))
+}
+
+# The lasso
+lasso_regression <- function(data) {
+  x <- model.matrix(crim ~ . - 1, data)
+  y <- data$crim
+  cv_out <- cv.glmnet(x, y, alpha = 1)
+  best_lambda <- cv_out$lambda.min
+  lasso_mod <- glmnet(x, y, alpha = 1, lambda = best_lambda)
+  return(list(cv = cv_out, model = lasso_mod))
+}
+
+# Principal component regression (PCR)
+pcr_regression <- function(data) {
+  pcr_mod <- pcr(crim ~ ., data = Boston, scale = TRUE, validation = "CV")
+  summary(pcr_mod)
+}
+
+# Now apply these methods
+best_subset <- best_subset_selection(Boston)
+ridge <- ridge_regression(Boston)
+lasso <- lasso_regression(Boston)
+pcr <- pcr_regression(Boston)
 ```
 
 Your answer:
@@ -504,8 +788,48 @@ Please write your answer in full sentences.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+# Performing best subset selection using the regsubsets function
+best_subset_model <- regsubsets(crim ~ ., data=Boston, nvmax=NULL, method="exhaustive")
+best_subset_summary <- summary(best_subset_model)
+
+# Choose the model with the lowest BIC
+# BIC tends to penalize complex models more than AIC
+# which might lead to a better-performing model in terms of prediction error
+best_model <- which.min(best_subset_summary$bic)
+
+
+
+
+# Prepare the model matrix
+x <- model.matrix(crim ~ ., Boston)[,-1]
+y <- Boston$crim
+
+# Ridge regression with cross-validation
+cv_ridge <- cv.glmnet(x, y, alpha = 0, nfolds = 10)
+plot(cv_ridge)
+best_lambda_ridge <- cv_ridge$lambda.min
+
+# Lasso regression with cross-validation
+cv_lasso <- cv.glmnet(x, y, alpha = 1, nfolds = 10)
+plot(cv_lasso)
+best_lambda_lasso <- cv_lasso$lambda.min
+
+
+
+
+# Principal component regression with cross-validation
+pcr_model <- pcr(crim ~ ., data=Boston, scale=TRUE, validation="CV")
+validationplot(pcr_model, val.type="MSEP")
+
+
+# Assume we have MSEP values from cross-validation for each model
+mse_ridge <- mean(cv_ridge$cvm)
+mse_lasso <- mean(cv_lasso$cvm)
+mse_pcr <- mean(summary(pcr_model)$validation$MSEP[1,])
+
+mse_ridge
+mse_lasso
+mse_pcr
 ```
 
 Your answer:
